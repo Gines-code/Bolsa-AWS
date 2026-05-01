@@ -251,7 +251,7 @@ def subir_a_s3(df: pd.DataFrame, bucket: str, prefix: str) -> str:
         key = f"{prefix}{unique_ticker}/ranking_{fecha}.csv"
 
         buffer = io.StringIO()
-        df.to_csv(buffer, index=False)
+        df_ticker.to_csv(buffer, index=False)
         s3.put_object(
             Bucket=bucket,
             Key=key,
