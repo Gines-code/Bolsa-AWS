@@ -1,0 +1,1 @@
+Esta lambda a través de tickers obtiene datos de varias acciones.
