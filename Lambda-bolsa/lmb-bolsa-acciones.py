@@ -184,6 +184,7 @@ def obtener_datos_finnhub(ticker: str) -> dict | None:
             "Recomendación":    round(recomendacion, 2) if recomendacion else None,
         }
 
+
     except requests.exceptions.RequestException as e:
         logger.warning(f"Error en solicitud para {ticker}: {e}")
         return None
@@ -252,12 +253,12 @@ def subir_a_s3(df: pd.DataFrame, bucket: str, prefix: str) -> str:
 
         buffer = io.StringIO()
         df_ticker.to_csv(buffer, index=False)
-        s3.put_object(
-            Bucket=bucket,
-            Key=key,
-            Body=buffer.getvalue().encode("utf-8"),
-            ContentType="text/csv",
-        )
+        # s3.put_object(
+        #     Bucket=bucket,
+        #     Key=key,
+        #     Body=buffer.getvalue().encode("utf-8"),
+        #     ContentType="text/csv",
+        # )
         logger.info(f"Archivo subido → s3://{bucket}/{key}")
     return key
 
@@ -284,16 +285,16 @@ def lambda_handler(event, context):
     df = calcular_scores(df)
 
     logger.info(f"\n🏆 Top 10:\n{df[['Ticker','Empresa','P/E Trailing','ValorScore']].head(10).to_string()}")
-
+    
     # 3. Columnas de salida ordenadas
     columnas_salida = [
         "Ticker", "Empresa", "Sector", "Precio", "ValorScore",
-        "P/E Trailing", "P/E Forward", "PEG Ratio", "P/B Ratio",
-        "ROE (%)", "Margen Neto (%)", "Crec. Ingresos (%)",
-        "Deuda/Equity", "Beta", "Dividend Yield (%)",
+        "P/E Trailing", "P/E Forward", "PEG Ratio", "P/B Ratio", "EPS Growth (%)", "EPS", 
+        "ROE 5Y (%)", "ROE (%)", "Margen Neto (%)", "Crec. Ingresos (%)",
+        "Deuda/Equity", "Beta", "Dividend Growth (%)", "Dividend Yield (%)",
         "MarketCap", "Precio Objetivo", "Upside (%)", "Recomendación",
         "P/E Sector", "PE_relativo",
-    ]
+    ] 
     columnas_salida = [c for c in columnas_salida if c in df.columns]
 
     # 4. Subir a S3
