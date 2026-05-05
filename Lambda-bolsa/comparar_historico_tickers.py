@@ -161,14 +161,41 @@ def subir_csv_s3(df, bucket, prefix):
     return key
 
 # Enviar resumen por SNS
-def enviar_resumen_sns(resumenes, bucket, key, topic_arn):
+def enviar_resumen_sns(df, bucket, key, topic_arn):
     if not topic_arn:
         print("SNS_TOPIC_ARN no configurado")
         return
+    # Seleccionar solo las columnas deseadas para el mail
+    columnas_mail = [
+        'Ticker', 'Fecha', 'Precio', '% Dif. Precio', 'Primera fecha >= precio',
+        'P/E Trailing', 'Primera fecha >= P/E Trailing', 'P/E Forward', 'Dif. P/E Forward'
+    ]
+    # Filtrar solo las columnas deseadas (rellenar con string vacío si falta alguna)
+    df_fmt = df.copy()
+    for col in columnas_mail:
+        if col not in df_fmt.columns:
+            df_fmt[col] = ""
+    df_fmt = df_fmt[columnas_mail]
+    # Redondear valores numéricos a 2 decimales
+    for col in ['Precio', '% Dif. Precio', 'P/E Trailing', 'P/E Forward', 'Dif. P/E Forward']:
+        if col in df_fmt.columns:
+            df_fmt[col] = df_fmt[col].apply(lambda x: f"{x:.2f}" if pd.notnull(x) and x != '' else "")
+    # Convertir fechas a string (si no lo son)
+    for col in ['Fecha', 'Primera fecha >= precio', 'Primera fecha >= P/E Trailing']:
+        if col in df_fmt.columns:
+            df_fmt[col] = df_fmt[col].apply(lambda x: x.strftime("%Y-%m-%d") if pd.notnull(x) and hasattr(x, 'strftime') else (str(x) if pd.notnull(x) and x != '' else ""))
+    # Construir tabla alineada
     mensaje = "Resumen histórico diario de tickers (último día):\n\n"
-    for r in resumenes:
-        mensaje += (f"{r['Ticker']}: Último={r['Ultimo']} USD | %Cambio={r['%Cambio']}% | "
-                    f"Máx={r['Max']} ({r['Fecha Max']}) | Mín={r['Min']} ({r['Fecha Min']})\n")
+    # Cabecera
+    header_fmt = "{:<8} {:<10} {:>8} {:>10} {:<22} {:>12} {:<26} {:>12} {:>14}\n"
+    mensaje += header_fmt.format(*columnas_mail)
+    mensaje += "-" * 130 + "\n"
+    # Filas
+    if not df_fmt.empty:
+        for _, row in df_fmt.iterrows():
+            mensaje += header_fmt.format(*[row.get(col, '') for col in columnas_mail])
+    else:
+        mensaje += "(Sin datos para mostrar)\n"
     mensaje += f"\nCSV completo: s3://{bucket}/{key}"
     sns = boto3.client("sns")
     sns.publish(TopicArn=topic_arn, Subject="Resumen histórico diario de tickers", Message=mensaje)
@@ -181,5 +208,5 @@ def lambda_handler(event, context):
         exit(1)
     df, resumenes = analizar_historico(df)
     key = subir_csv_s3(df, S3_BUCKET, S3_PREFIX)
-    enviar_resumen_sns(resumenes, S3_BUCKET, key, SNS_TOPIC_ARN)
+    enviar_resumen_sns(df, S3_BUCKET, key, SNS_TOPIC_ARN)
     print("Proceso completado. CSV subido y resumen enviado por SNS.")
