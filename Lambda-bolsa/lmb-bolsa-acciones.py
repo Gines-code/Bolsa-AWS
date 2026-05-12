@@ -253,12 +253,12 @@ def subir_a_s3(df: pd.DataFrame, bucket: str, prefix: str) -> str:
 
         buffer = io.StringIO()
         df_ticker.to_csv(buffer, index=False)
-        # s3.put_object(
-        #     Bucket=bucket,
-        #     Key=key,
-        #     Body=buffer.getvalue().encode("utf-8"),
-        #     ContentType="text/csv",
-        # )
+        s3.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=buffer.getvalue().encode("utf-8"),
+            ContentType="text/csv",
+        )
         logger.info(f"Archivo subido → s3://{bucket}/{key}")
     return key
 

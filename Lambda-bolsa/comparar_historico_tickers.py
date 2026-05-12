@@ -155,7 +155,7 @@ def analizar_historico(df):
 def subir_csv_s3(df, bucket, prefix):
     s3 = boto3.client("s3")
     fecha = datetime.now(timezone.utc).strftime("%Y%m%d")
-    key = f"{prefix}historico_{fecha}.csv"
+    key = f"{prefix}reporte_{fecha}.csv"
     buffer = df.to_csv(index=False).encode("utf-8")
     s3.put_object(Bucket=bucket, Key=key, Body=buffer, ContentType="text/csv")
     return key
@@ -207,6 +207,7 @@ def lambda_handler(event, context):
         print("No se pudo obtener histórico de ningún ticker desde S3.")
         exit(1)
     df, resumenes = analizar_historico(df)
-    key = subir_csv_s3(df, S3_BUCKET, S3_PREFIX)
+    S3_PREFIX_REPORTES = 'reportes/'
+    key = subir_csv_s3(df, S3_BUCKET, S3_PREFIX_REPORTES)
     enviar_resumen_sns(df, S3_BUCKET, key, SNS_TOPIC_ARN)
     print("Proceso completado. CSV subido y resumen enviado por SNS.")
